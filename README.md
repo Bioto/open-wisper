@@ -82,6 +82,45 @@ inject_mode = "paste"  # "type", "paste", or "auto"
 paste_threshold = 80
 ```
 
+### Autostart at login
+
+Install the release binary to `~/.local/bin` and enable platform autostart:
+
+```bash
+make install-autostart
+```
+
+- **Linux (i3, GNOME, etc.)**: installs `~/.config/autostart/open-wisper.desktop`
+- **macOS**: installs `~/Library/LaunchAgents/com.open-wisper.dictation.plist` and loads it with `launchctl`
+
+Remove autostart:
+
+```bash
+make uninstall-autostart
+```
+
+Ensure `GROQ_API_KEY` is available at login. The tray wrapper reads it from `~/.profile`, `~/.zprofile`, or `~/.zshrc`, or you can set `api_key` in `config.toml`.
+
+**Linux troubleshooting (i3 + dex):**
+
+```bash
+# Check autostart log after login
+cat ~/.config/open-wisper/autostart.log
+
+# Start manually (same as dex autostart)
+~/.local/bin/open-wisper-tray
+
+# Re-run all XDG autostart entries
+dex --autostart --environment i3
+```
+
+**macOS manual check:**
+
+```bash
+launchctl print gui/$(id -u)/com.open-wisper.dictation
+tail -f ~/Library/Logs/open-wisper.log
+```
+
 ### i3 / tiling window managers
 
 If the dictation HUD tiles instead of floating, add to your i3 config:

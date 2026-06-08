@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Open Wispr
+Comment=Voice dictation tray app
+Exec=REPLACE_WITH_HOME/.local/bin/open-wisper-tray
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=2

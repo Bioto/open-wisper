@@ -1,4 +1,4 @@
-.PHONY: build release test clippy dictation dictation-test dictation-model nexus-recorder-wheel nexus-recorder-wheel-dev nexus-recorder-wheel-all clickhouse-up clickhouse-down clickhouse-logs clickhouse-status clickhouse-restart
+.PHONY: build release test clippy dictation dictation-test dictation-model install-autostart uninstall-autostart nexus-recorder-wheel nexus-recorder-wheel-dev nexus-recorder-wheel-all clickhouse-up clickhouse-down clickhouse-logs clickhouse-status clickhouse-restart
 
 build:
 	cargo build -p nexus_dictation
@@ -23,6 +23,14 @@ dictation-test:
 # Download local Whisper ggml model (requires --features local-asr)
 dictation-model:
 	cargo run --release -p nexus_dictation --features local-asr -- download-model
+
+# Install binary + login autostart (Linux XDG autostart or macOS LaunchAgent)
+install-autostart:
+	./scripts/install-autostart.sh
+
+# Remove login autostart
+uninstall-autostart:
+	./scripts/uninstall-autostart.sh
 
 # Nexus Recorder wheel build commands
 nexus-recorder-wheel:
