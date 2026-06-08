@@ -1,0 +1,20 @@
+/target
+.venv
+**/.venv
+.env
+.env.local
+logs
+**/__models__/**
+
+**/__pycache__/**
+.ruff_cache
+__pycache__/** */
+
+click-frames
+.models
+
+.sqlx
+
+__test_files__/**
+
+output/

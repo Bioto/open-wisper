@@ -1,0 +1,70 @@
+[package]
+name = "nexus_recorder"
+version = "0.1.0"
+edition = "2021"
+description = "Desktop recording library with PyO3 bindings for screen, audio, and input capture"
+
+[lib]
+name = "nexus_recorder"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "nexus-recorder"
+path = "src/main.rs"
+
+[features]
+default = []
+python = ["pyo3"]
+
+[dependencies]
+# PyO3 for Python bindings (optional - only needed for Python extension)
+pyo3 = { version = "0.27", features = ["extension-module", "abi3-py39"], optional = true }
+
+# CLI & Async
+clap = { workspace = true }
+tokio = { workspace = true }
+
+# Recording - FFmpeg for video/audio encoding
+ffmpeg-next = { git = "https://github.com/zmwangx/rust-ffmpeg" }
+
+# Recording - Audio capture
+cpal = "0.15"
+
+# Recording - Input capture (keyboard/mouse)
+device_query = "3.0"
+
+# Storage & Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Cross-platform screen capture
+scrap = "0.5"
+
+# Ctrl+C handling
+ctrlc = "3.4"
+
+[target.'cfg(unix)'.dependencies]
+# Unix signal handling for graceful FFmpeg shutdown
+nix = { version = "0.29", features = ["signal"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# Linux-specific dependencies if needed
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[lints.clippy]
+pedantic = "warn"
+unwrap_used = "warn"
+expect_used = "warn"

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "nexus_recorder"
+version = "0.1.0"
+description = "Desktop recording library for screen, audio, and input capture"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.0,<2.0",
+]
+
+[tool.maturin]
+features = ["python", "pyo3/extension-module"]
+module-name = "nexus_recorder"

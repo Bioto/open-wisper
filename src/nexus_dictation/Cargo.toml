@@ -1,0 +1,71 @@
+[package]
+name = "nexus_dictation"
+version = "0.1.0"
+edition = "2021"
+description = "Open-source voice dictation with Groq ASR and LLM rewrite"
+license = "MIT"
+
+[lib]
+name = "nexus_dictation"
+path = "src/lib.rs"
+
+[[bin]]
+name = "nexus-dictation"
+path = "src/main.rs"
+
+[features]
+default = []
+local-asr = ["dep:whisper-rs", "dep:hf-hub"]
+
+[dependencies]
+# CLI & async
+clap = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "sync", "time", "macros"] }
+
+# Audio capture
+cpal = "0.15"
+hound = "3.5"
+
+# Cloud ASR + LLM (Groq)
+reqwest = { version = "0.12", features = ["json", "blocking", "multipart"] }
+
+# Local ASR (optional)
+whisper-rs = { version = "0.16", optional = true }
+hf-hub = { version = "0.4", features = ["tokio"], optional = true }
+
+# Global hotkeys
+global-hotkey = "0.7"
+
+# Text injection
+enigo = "0.6"
+arboard = "3.6"
+
+# UI (tray + overlay)
+tray-icon = "0.21"
+eframe = { version = "0.31", default-features = true, features = ["default_fonts", "glow"] }
+egui = "0.31"
+winit = "0.30"
+image = "0.25"
+
+# Config & paths
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = "0.8"
+directories = "6.0"
+
+# Error handling & logging
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[dev-dependencies]
+tempfile = "3.10"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+
+[lints.clippy]
+pedantic = "warn"
+unwrap_used = "warn"
+expect_used = "warn"
