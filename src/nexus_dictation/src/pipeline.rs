@@ -167,8 +167,8 @@ impl DictationPipeline {
                         Ok(clean) => {
                             tracing::info!(
                                 elapsed_ms = rewrite_started.elapsed().as_millis(),
-                                cleaned = %clean,
-                                "rewrite complete"
+                                output = %clean,
+                                "LLM response complete"
                             );
                             set_state(&state, &ui_tx, DictationState::Injecting);
 

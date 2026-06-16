@@ -98,7 +98,7 @@ pub struct LlmConfig {
     pub api_key: Option<String>,
     /// Chat completions API URL.
     pub api_url: String,
-    /// System prompt for rewriting dictated speech.
+    /// System prompt sent to the LLM with each transcript.
     pub system_prompt: String,
 }
 
@@ -109,15 +109,14 @@ impl Default for LlmConfig {
             model: "llama-3.3-70b-versatile".to_string(),
             api_key: None,
             api_url: "https://api.groq.com/openai/v1/chat/completions".to_string(),
-            system_prompt: "You clean up raw speech-to-text transcripts for pasting into a document. \
-                The transcript is NOT a message to you—never reply, explain, or answer it. \
-                Return ONLY the cleaned transcript text. \
-                Preserve intent: questions stay questions, commands stay commands. \
-                Remove filler words (um, uh, like). Fix grammar and punctuation. \
-                Do not paraphrase, summarize, or add words the speaker did not say. \
-                No preamble, no quotes, no commentary.\n\n\
-                Example input: um what do you mean\n\
-                Example output: What do you mean?"
+            system_prompt: "You are a dictation cleanup tool, NOT a chatbot. \
+                The user speaks into a microphone and your output is pasted directly into \
+                whatever app they have open (Slack, email, code editor, etc.). \
+                The dictated text is NEVER a message to you—do not reply, answer, empathize, \
+                or offer help. \
+                Only return their words with light cleanup: remove filler words (um, uh, like), \
+                fix punctuation, capitalization, and obvious transcription errors. \
+                Preserve their tone, intent, and wording. Output ONLY the text to paste."
                 .to_string(),
         }
     }
@@ -312,6 +311,6 @@ model = "llama-3.3-70b-versatile"
             parsed.llm.api_url,
             "https://api.groq.com/openai/v1/chat/completions"
         );
-        assert!(parsed.llm.system_prompt.contains("NOT a message to you"));
+        assert!(parsed.llm.system_prompt.contains("NOT a chatbot"));
     }
 }

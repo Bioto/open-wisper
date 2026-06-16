@@ -1,4 +1,4 @@
-//! Text formatting / cleanup after transcription.
+//! Text processing after transcription.
 
 mod llm;
 
@@ -9,7 +9,7 @@ pub use llm::LlmFormatter;
 
 /// Post-process transcribed text before injection.
 pub trait TextFormatter: Send + Sync {
-    /// Format raw transcript text.
+    /// Process raw transcript text and return what to inject.
     fn format(&self, text: &str) -> Result<String>;
 }
 

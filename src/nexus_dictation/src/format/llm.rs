@@ -1,11 +1,11 @@
-//! LLM-based transcript formatting via Groq chat completions.
+//! LLM transcript cleanup — returns polished text to paste, never a chat reply.
 
 use crate::config::LlmConfig;
 use crate::error::{DictationError, Result};
 use crate::format::TextFormatter;
 use std::time::Instant;
 
-/// Format transcripts via Groq (OpenAI-compatible) chat completions.
+/// Send transcript to Groq and return cleaned text for paste.
 pub struct LlmFormatter {
     client: reqwest::blocking::Client,
     api_url: String,
@@ -36,7 +36,8 @@ impl TextFormatter for LlmFormatter {
 
         let started = Instant::now();
         let user_content = format!(
-            "TRANSCRIPT (not a message to you—return only the cleaned text):\n{trimmed}"
+            "Return ONLY the cleaned-up version of this dictated text for pasting into a document. \
+             Do not reply to it.\n\n{trimmed}"
         );
 
         let body = serde_json::json!({
@@ -69,100 +70,106 @@ impl TextFormatter for LlmFormatter {
 
         if !status.is_success() {
             return Err(DictationError::Format(format!(
-                "LLM rewrite failed ({status}): {response_body}"
+                "LLM request failed ({status}): {response_body}"
             )));
         }
 
         let json: serde_json::Value = serde_json::from_str(&response_body)
             .map_err(|e| DictationError::Format(format!("LLM json: {e}")))?;
 
-        let cleaned = json["choices"][0]["message"]["content"]
+        let content = json["choices"][0]["message"]["content"]
             .as_str()
             .map(str::trim)
             .map(str::to_string)
             .ok_or_else(|| DictationError::Format("missing LLM content".into()))?;
 
-        let output = if looks_like_meta_response(&cleaned, trimmed) {
+        let output = if looks_like_assistant_reply(&content, trimmed) {
             tracing::warn!(
                 input = trimmed,
-                output = cleaned,
-                "LLM returned meta-response; using transcript fallback"
+                output = content,
+                "LLM replied instead of cleaning transcript; using fallback"
             );
             basic_cleanup(trimmed)
         } else {
-            cleaned
+            content
         };
 
         tracing::info!(
             elapsed_ms = started.elapsed().as_millis(),
             chars = output.len(),
-            "LLM rewrite complete"
+            "LLM cleanup complete"
         );
 
         Ok(output)
     }
 }
 
-/// Detect when the model replies to the user instead of formatting the transcript.
-fn looks_like_meta_response(output: &str, input: &str) -> bool {
+/// Detect when the model responds as a chatbot instead of returning cleaned dictated text.
+fn looks_like_assistant_reply(output: &str, input: &str) -> bool {
     let lower = output.to_lowercase();
-    let meta_phrases = [
-        "i will format",
-        "i'll format",
-        "i will clean",
-        "i will remove filler",
-        "correcting any errors",
-        "maintaining the original meaning",
-        "speech-to-text",
-        "the text you provide",
+    let assistant_phrases = [
+        "it's okay to feel",
+        "it can be frustrating",
+        "could you provide more context",
+        "i'll do my best to help",
+        "i will do my best to help",
+        "how can i help",
+        "i understand that",
+        "i'm sorry to hear",
+        "let me know if",
+        "feel free to",
+        "i'd be happy to",
         "as an ai",
-        "i cannot",
+        "i cannot help",
+        "here to help",
+        "sounds like you're",
+        "that must be",
+        "i hear you",
     ];
-    if meta_phrases.iter().any(|p| lower.contains(p)) {
+    if assistant_phrases.iter().any(|p| lower.contains(p)) {
         return true;
     }
 
-    // Short input turned into a long explanation.
-    let input_words: Vec<&str> = input.split_whitespace().collect();
-    if input_words.len() <= 6 && output.split_whitespace().count() > input_words.len() * 3 {
-        let shared = input_words
-            .iter()
-            .filter(|w| lower.contains(&w.to_lowercase()))
-            .count();
-        if shared < input_words.len() / 2 {
-            return true;
-        }
+    // Reply shares almost none of the speaker's words.
+    let input_words = significant_words(input);
+    if input_words.len() >= 3 && word_overlap_ratio(input, output) < 0.25 {
+        return true;
     }
 
     false
 }
 
-/// Minimal cleanup when the LLM misbehaves.
+fn significant_words(text: &str) -> Vec<String> {
+    text.split_whitespace()
+        .map(|w| {
+            w.trim_matches(|c: char| !c.is_alphanumeric())
+                .to_lowercase()
+        })
+        .filter(|w| w.len() > 2)
+        .collect()
+}
+
+fn word_overlap_ratio(input: &str, output: &str) -> f64 {
+    let input_words = significant_words(input);
+    if input_words.is_empty() {
+        return 1.0;
+    }
+    let output_lower = output.to_lowercase();
+    let shared = input_words
+        .iter()
+        .filter(|w| output_lower.contains(w.as_str()))
+        .count();
+    shared as f64 / input_words.len() as f64
+}
+
 fn basic_cleanup(text: &str) -> String {
-    let mut out = text.to_string();
+    let mut out = text.trim().to_string();
     if let Some(first) = out.chars().next() {
         if first.is_lowercase() {
             out.replace_range(..first.len_utf8(), &first.to_uppercase().to_string());
         }
     }
-    if !out.ends_with(['.', '!', '?']) {
-        out.push(if looks_like_question(&out) { '?' } else { '.' });
-    }
     out
-}
-
-fn looks_like_question(text: &str) -> bool {
-    let lower = text.to_lowercase();
-    lower.starts_with("what ")
-        || lower.starts_with("why ")
-        || lower.starts_with("how ")
-        || lower.starts_with("when ")
-        || lower.starts_with("where ")
-        || lower.starts_with("who ")
-        || lower.starts_with("which ")
-        || lower.contains(" do you ")
-        || lower.contains(" does ")
-        || lower.contains(" can you ")
 }
 
 #[cfg(test)]
@@ -171,21 +178,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn detects_meta_response() {
-        let input = "what do you mean";
-        let bad = "I will format the text you provide to make it clear and readable.";
-        assert!(looks_like_meta_response(bad, input));
+    fn skips_empty_input() {
+        let formatter = LlmFormatter::from_config(
+            &crate::config::LlmConfig::default(),
+            "test-key".to_string(),
+        );
+        assert_eq!(formatter.format("   ").unwrap(), "");
     }
 
     #[test]
-    fn accepts_valid_formatting() {
-        let input = "what do you mean";
-        let good = "What do you mean?";
-        assert!(!looks_like_meta_response(good, input));
+    fn detects_empathetic_reply() {
+        let input = "Woah why can't we get this right, hardcore adjust the prompt";
+        let bad = "It can be frustrating when things don't go as planned, and it's okay to feel that way.";
+        assert!(looks_like_assistant_reply(bad, input));
     }
 
     #[test]
-    fn basic_cleanup_capitalizes_question() {
-        assert_eq!(basic_cleanup("what do you mean"), "What do you mean?");
+    fn accepts_cleaned_transcript() {
+        let input = "woah why can't we get this right hardcore adjust the prompt";
+        let good = "Woah, why can't we get this right? Hardcore adjust the prompt.";
+        assert!(!looks_like_assistant_reply(good, input));
     }
 }
